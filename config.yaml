@@ -1,0 +1,38 @@
+# Audio Workflow Configuration
+# This file defines database mappings and workflow configurations
+
+# Database mappings
+databases:
+  meetings: "your-meeting-database-id-here"
+  podcasts: "your-podcast-database-id-here"
+  interviews: "your-interview-database-id-here"
+  quick_notes: "your-quick-notes-database-id-here"
+  full_analysis: "your-full-analysis-database-id-here"
+
+# Default settings
+defaults:
+  database: "meetings"
+  workflow: "quick_notes"
+  keep_files: false
+  output_dir: "." # Outputs go directly to current directory
+  temp_dir: "/tmp" # Temp files go to system temp
+
+# Workflow definitions
+workflows:
+  quick_notes:
+    description: "Fast transcription and basic notes"
+    steps: ["transcribe", "notion-upload"]
+    deepcast_model: "gpt-4o-mini"
+    deepcast_temperature: 0.3
+
+  full_analysis:
+    description: "Complete transcription, deepcast breakdown, and upload"
+    steps: ["transcribe", "deepcast", "notion-upload"]
+    deepcast_model: "gpt-4o"
+    deepcast_temperature: 0.7
+
+  podcast_episode:
+    description: "Podcast-specific processing with enhanced analysis"
+    steps: ["transcribe", "deepcast", "notion-upload"]
+    deepcast_model: "gpt-4o-mini"
+    deepcast_temperature: 0.8

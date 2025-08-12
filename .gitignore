@@ -1,0 +1,19 @@
+# Environment and secrets
+.env
+.venv/
+config.test.yaml
+
+# Output and temporary files
+# Note: Outputs now go directly to current working directory
+# with descriptive filenames (e.g., *.transcript, *-deepcast.md)
+*.transcript
+*.deepcast.md
+*.notion-upload.log
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/

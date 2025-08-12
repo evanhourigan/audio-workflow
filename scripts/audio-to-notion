@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""
+CLI entry point for audio-to-notion tool.
+"""
+
+import argparse
+import sys
+from pathlib import Path
+
+# Add the project root to Python path so we can import our package
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
+
+from audio_workflow.workflow import AudioWorkflowOrchestrator
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="audio-to-notion",
+        description="Audio workflow orchestrator: transcribe → deepcast → notion-upload",
+        epilog="Example: audio-to-notion meeting.wav --workflow full_analysis\n\nNote: Use --list-databases and --list-workflows to see available options from your configuration."
+    )
+    
+    parser.add_argument("audio_file", nargs='?', help="Path to audio file to process")
+    parser.add_argument("--title", help="Title for the Notion page")
+    parser.add_argument("--database", default="meetings", help="Database to use (use --list-databases to see available options)")
+    parser.add_argument("--workflow", default="quick_notes", help="Workflow to use (use --list-workflows to see available options)")
+    parser.add_argument("--keep-files", action="store_true", help="Keep intermediate files")
+    parser.add_argument("--config", help="Configuration file path (uses smart discovery if not specified)")
+    parser.add_argument("--list-workflows", action="store_true", help="List available workflows")
+    parser.add_argument("--list-databases", action="store_true", help="List available databases")
+    
+    args = parser.parse_args()
+    
+    # Initialize orchestrator
+    orchestrator = AudioWorkflowOrchestrator(args.config)
+    
+    # Handle list commands
+    if args.list_workflows:
+        orchestrator.list_workflows()
+        return
+    
+    if args.list_databases:
+        orchestrator.list_databases()
+        return
+    
+    # For list commands, audio_file is not required
+    if not args.audio_file:
+        print("❌ Audio file is required for workflow execution")
+        print("Use --list-workflows or --list-databases to see available options")
+        sys.exit(1)
+    
+    # Run the workflow
+    success = orchestrator.run_workflow(
+        audio_file=args.audio_file,
+        title=args.title,
+        database=args.database,
+        workflow=args.workflow,
+        keep_files=args.keep_files
+    )
+    
+    if not success:
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
