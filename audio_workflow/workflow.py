@@ -29,15 +29,22 @@ class AudioWorkflowOrchestrator:
         temp_dir = self.config.get("defaults", {}).get("temp_dir", "/tmp")
         
         # Convert to Path objects, handling relative vs absolute paths
+        # Get the original working directory where the user ran the command
+        original_cwd = os.getenv("AUDIO_WORKFLOW_ORIGINAL_CWD")
+        if original_cwd:
+            original_cwd = Path(original_cwd)
+        else:
+            original_cwd = Path.cwd()
+            
         if output_dir == ".":
-            # Current working directory
-            self.output_dir = Path.cwd()
+            # Use the original working directory where the user ran the command
+            self.output_dir = original_cwd
         elif output_dir.startswith("/"):
             # Absolute path
             self.output_dir = Path(output_dir)
         else:
-            # Relative path
-            self.output_dir = Path.cwd() / output_dir
+            # Relative path from the original working directory
+            self.output_dir = original_cwd / output_dir
             
         if temp_dir.startswith("/"):
             # Absolute path (like /tmp)
@@ -128,12 +135,20 @@ class AudioWorkflowOrchestrator:
         return True
     
     def run_workflow(self, audio_file: str, title: Optional[str] = None, 
-                    database: str = "meetings", workflow: str = "quick_notes",
-                    keep_files: bool = False) -> bool:
+                    database: Optional[str] = None, workflow: Optional[str] = None,
+                    keep_files: Optional[bool] = None) -> bool:
         """Run the complete audio workflow."""
         
         if not self._validate_environment():
             return False
+        
+        # Use config defaults if not specified
+        if database is None:
+            database = self.config.get("defaults", {}).get("database", "meetings")
+        if workflow is None:
+            workflow = self.config.get("defaults", {}).get("workflow", "quick_notes")
+        if keep_files is None:
+            keep_files = self.config.get("defaults", {}).get("keep_files", False)
         
         # Generate title if not provided
         if not title:
@@ -201,18 +216,34 @@ class AudioWorkflowOrchestrator:
         output_file = self.output_dir / f"{input_stem}.transcript"
         
         try:
-            cmd = ["transcribe", audio_file, "--output", str(output_file)]
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            # transcribe uses --output-dir (directory) and --formats (output format)
+            output_dir = output_file.parent
+            cmd = ["transcribe", audio_file, "--output-dir", str(output_dir), "--formats", "md"]
+            print(f"   Running: {' '.join(cmd)}")
+            # Get the original working directory where the user ran the command
+            original_cwd = os.getenv("AUDIO_WORKFLOW_ORIGINAL_CWD")
+            if original_cwd:
+                subprocess_cwd = original_cwd
+            else:
+                subprocess_cwd = str(output_dir)
             
-            if output_file.exists():
-                print(f"   ✅ Transcription completed: {output_file.name}")
-                return str(output_file)
+            print(f"   Working directory: {Path.cwd()}")
+            print(f"   Subprocess working directory: {subprocess_cwd}")
+            print(f"   PATH: {os.getenv('PATH', 'Not set')[:100]}...")
+            # Run without capturing output so user can see progress
+            result = subprocess.run(cmd, check=True, cwd=subprocess_cwd)
+            
+            # Check if the transcript file was created (transcribe creates it with -transcript.md extension)
+            transcript_file = output_dir / f"{Path(audio_file).stem}-transcript.md"
+            if transcript_file.exists():
+                print(f"   ✅ Transcription completed: {transcript_file.name}")
+                return str(transcript_file)
             else:
                 print(f"   ❌ Transcription output file not found")
                 return None
                 
         except subprocess.CalledProcessError as e:
-            print(f"   ❌ Transcription failed: {e.stderr}")
+            print(f"   ❌ Transcription failed with exit code {e.returncode}")
             return None
         except Exception as e:
             print(f"   ❌ Transcription error: {e}")
@@ -223,7 +254,7 @@ class AudioWorkflowOrchestrator:
         print("📡 Step 2: Generating deepcast breakdown...")
         
         # Generate descriptive filename: input-name-deepcast.md
-        input_stem = Path(transcript_file).stem.replace('.transcript', '')
+        input_stem = Path(transcript_file).stem
         output_file = self.output_dir / f"{input_stem}-deepcast.md"
         
         try:
@@ -236,7 +267,9 @@ class AudioWorkflowOrchestrator:
             if "deepcast_temperature" in workflow_config:
                 cmd.extend(["--temperature", str(workflow_config["deepcast_temperature"])])
             
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            print(f"   Running: {' '.join(cmd)}")
+            # Run without capturing output so user can see progress
+            result = subprocess.run(cmd, check=True)
             
             if output_file.exists():
                 print(f"   ✅ Deepcast breakdown generated: {output_file.name}")
@@ -258,7 +291,9 @@ class AudioWorkflowOrchestrator:
         
         try:
             cmd = ["notion-upload", markdown_file, "--title", title, "--database-id", database_id]
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            print(f"   Running: {' '.join(cmd)}")
+            # Run without capturing output so user can see progress
+            result = subprocess.run(cmd, check=True)
             
             print(f"   ✅ Notion upload completed for: {title}")
             return True
