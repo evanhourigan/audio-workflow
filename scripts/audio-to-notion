@@ -29,6 +29,7 @@ def main():
     parser.add_argument("--config", help="Configuration file path (uses smart discovery if not specified)")
     parser.add_argument("--list-workflows", action="store_true", help="List available workflows")
     parser.add_argument("--list-databases", action="store_true", help="List available databases")
+    parser.add_argument("--show-config", action="store_true", help="Show loaded configuration and exit")
     
     args = parser.parse_args()
     
@@ -42,6 +43,10 @@ def main():
     
     if args.list_databases:
         orchestrator.list_databases()
+        return
+    
+    if args.show_config:
+        orchestrator.show_config()
         return
     
     # For list commands, audio_file is not required

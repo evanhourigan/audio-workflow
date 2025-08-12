@@ -306,3 +306,65 @@ class AudioWorkflowOrchestrator:
         for name, db_id in databases.items():
             print(f"  {name}: {db_id}")
         print()
+    
+    def show_config(self):
+        """Display the loaded configuration in a readable format."""
+        print("🔧 Loaded Configuration")
+        print("=" * 50)
+        
+        # Show which config file was loaded
+        if self.config_file:
+            print(f"📁 Config Source: {self.config_file}")
+        else:
+            print("📁 Config Source: Auto-discovered")
+        print()
+        
+        # Show defaults
+        defaults = self.config.get("defaults", {})
+        if defaults:
+            print("⚙️  Default Settings:")
+            for key, value in defaults.items():
+                print(f"   {key}: {value}")
+            print()
+        
+        # Show databases
+        databases = self.config.get("databases", {})
+        if databases:
+            print("🗄️  Database Mappings:")
+            for name, db_id in databases.items():
+                # Truncate long database IDs for readability
+                display_id = db_id[:20] + "..." if len(db_id) > 20 else db_id
+                print(f"   {name}: {display_id}")
+            print()
+        
+        # Show workflows
+        workflows = self.config.get("workflows", {})
+        if workflows:
+            print("🔄 Available Workflows:")
+            for name, config in workflows.items():
+                description = config.get("description", "No description")
+                steps = " → ".join(config.get("steps", []))
+                print(f"   {name}: {description}")
+                print(f"     Steps: {steps}")
+                
+                # Show workflow-specific settings
+                if "deepcast_model" in config:
+                    print(f"     Model: {config['deepcast_model']}")
+                if "deepcast_temperature" in config:
+                    print(f"     Temperature: {config['deepcast_temperature']}")
+                print()
+        
+        # Show output and temp directories
+        print("📁 File Locations:")
+        print(f"   Output Directory: {self.output_dir}")
+        print(f"   Temp Directory: {self.temp_dir}")
+        print()
+        
+        # Show environment variables status
+        print("🔑 Environment Variables:")
+        required_vars = ["OPENAI_API_KEY", "NOTION_API_KEY"]
+        for var in required_vars:
+            status = "✅ Set" if os.getenv(var) else "❌ Missing"
+            print(f"   {var}: {status}")
+        
+
